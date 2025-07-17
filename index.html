@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Trading Dashboard v1.12</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #111827;
+            --card-bg-color: #F9FAFB;
+            --border-color: #E5E7EB;
+            --muted-text-color: #6B7280;
+            --accent-color-1: #2563EB; /* Blue 600 */
+            --go-color: #16A34A;
+            --caution-color: #F59E0B;
+            --invalid-color: #DC2626;
+        }
+
+        .dark-theme {
+            --bg-color: #0F172A; /* Slate 900 */
+            --text-color: #E2E8F0; /* Slate 200 */
+            --card-bg-color: #1E293B; /* Slate 800 */
+            --border-color: #334155; /* Slate 700 */
+            --muted-text-color: #94A3B8; /* Slate 400 */
+            --accent-color-1: #38BDF8; /* Sky 400 */
+            --go-color: #22C55E;
+            --caution-color: #FBBF24;
+            --invalid-color: #F87171;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 60vh;
+            background-color: var(--card-bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+
+        .loader {
+            border: 4px solid var(--border-color);
+            border-top: 4px solid var(--accent-color-1);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 2rem auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background-color: var(--card-bg-color);
+            padding: 2rem;
+            border-radius: 0.75rem;
+            width: 90%;
+            max-width: 48rem; /* 768px */
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            transform: scale(0.95);
+            transition: transform 0.3s;
+        }
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+        .modal-body {
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+        
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-3xl md:text-4xl font-bold tracking-tight">AI Analysis Dashboard</h1>
+                <p class="text-lg mt-1" style="color: var(--muted-text-color);">v1.12</p>
+            </div>
+            <button id="theme-switcher" class="p-2 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--bg-color)] focus:ring-[var(--accent-color-1)]" style="color: var(--muted-text-color);">
+                <svg id="sun-icon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                <svg id="moon-icon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+            </button>
+        </header>
+
+        <!-- Ticker Input -->
+        <div class="flex flex-col sm:flex-row justify-center items-center gap-2 mb-6">
+            <input type="text" id="tickerInput" class="text-sm rounded-lg block w-full max-w-xs p-2.5" placeholder="e.g., AAPL, EURUSD" value="EURUSD" style="background-color: var(--card-bg-color); border: 1px solid var(--border-color); color: var(--text-color);">
+            <button id="analyseBtn" class="w-full sm:w-auto font-bold py-2.5 px-5 rounded-lg transition-colors text-white" style="background-color: var(--accent-color-1);">
+                Analyze
+            </button>
+        </div>
+
+        <!-- Chart Container -->
+        <div id="chart-container" class="chart-container shadow-lg"></div>
+
+        <!-- Analysis Output -->
+        <div id="analysis-output" class="mt-8 min-h-[200px]">
+            <!-- Dynamic content will be injected here -->
+        </div>
+
+        <!-- API Settings -->
+        <div class="mt-8">
+             <details class="rounded-lg" style="background-color: var(--card-bg-color); border: 1px solid var(--border-color);">
+                <summary class="p-4 font-semibold cursor-pointer">API & Chart Settings</summary>
+                <div class="p-4 border-t" style="border-color: var(--border-color);">
+                    <div class="space-y-4">
+                        <div>
+                            <label for="gemini-api-key" class="block text-sm font-medium mb-1">Gemini API Key</label>
+                            <input type="password" id="gemini-api-key" class="w-full p-2 text-sm rounded-md" style="background-color: var(--bg-color); border: 1px solid var(--border-color);" placeholder="Leave blank to use internal key">
+                        </div>
+                        <div>
+                            <label for="tradingview-api-key" class="block text-sm font-medium mb-1">TradingView API Key (Data)</label>
+                            <input type="password" id="tradingview-api-key" class="w-full p-2 text-sm rounded-md" style="background-color: var(--bg-color); border: 1px solid var(--border-color);" placeholder="Not implemented (uses mock data)">
+                        </div>
+                    </div>
+                </div>
+            </details>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="details-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold">Detailed Analysis</h2>
+                <button id="modal-close-btn" class="p-1 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div id="modal-body" class="modal-body prose prose-invert max-w-none"></div>
+            <div class="mt-6 pt-4 border-t" style="border-color: var(--border-color);">
+                <div class="flex justify-end gap-3">
+                    <button id="copy-btn" class="font-semibold py-2 px-4 rounded-lg" style="background-color: var(--card-bg-color); border: 1px solid var(--border-color);">Copy</button>
+                    <button id="download-btn" class="text-white font-semibold py-2 px-4 rounded-lg" style="background-color: var(--accent-color-1);">Download .md</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const chartContainer = document.getElementById('chart-container');
+        const tickerInput = document.getElementById('tickerInput');
+        const analyseBtn = document.getElementById('analyseBtn');
+        const analysisOutput = document.getElementById('analysis-output');
+        const themeSwitcher = document.getElementById('theme-switcher');
+        const sunIcon = document.getElementById('sun-icon');
+        const moonIcon = document.getElementById('moon-icon');
+        const modal = document.getElementById('details-modal');
+        const modalCloseBtn = document.getElementById('modal-close-btn');
+        const modalBody = document.getElementById('modal-body');
+        const copyBtn = document.getElementById('copy-btn');
+        const downloadBtn = document.getElementById('download-btn');
+
+        // --- State ---
+        let chart = null;
+        let candleSeries = null;
+        let currentTicker = 'EURUSD';
+        let detailedAnalysisText = '';
+
+        // --- Theming ---
+        function applyTheme(theme) {
+            if (theme === 'dark') {
+                document.body.classList.add('dark-theme');
+                sunIcon.classList.add('hidden');
+                moonIcon.classList.remove('hidden');
+            } else {
+                document.body.classList.remove('dark-theme');
+                sunIcon.classList.remove('hidden');
+                moonIcon.classList.add('hidden');
+            }
+            if (chart) updateChartTheme();
+        }
+
+        function updateChartTheme() {
+            const isDark = document.body.classList.contains('dark-theme');
+            chart.applyOptions({
+                layout: { background: { color: isDark ? '#1E293B' : '#F9FAFB' }, textColor: isDark ? '#E2E8F0' : '#111827' },
+                grid: { vertLines: { color: isDark ? '#334155' : '#E5E7EB' }, horzLines: { color: isDark ? '#334155' : '#E5E7EB' } },
+            });
+        }
+
+        themeSwitcher.addEventListener('click', () => {
+            const newTheme = document.body.classList.contains('dark-theme') ? 'light' : 'dark';
+            localStorage.setItem('theme', newTheme);
+            applyTheme(newTheme);
+        });
+
+        // --- Charting ---
+        function initializeChart() {
+            if (chart) chart.remove();
+            
+            // FIX: Destructure createChart from the global LightweightCharts object to ensure correct reference
+            const { createChart, CrosshairMode } = LightweightCharts;
+
+            chart = createChart(chartContainer, {
+                width: chartContainer.clientWidth,
+                height: chartContainer.clientHeight,
+                crosshair: { mode: CrosshairMode.Normal },
+            });
+            candleSeries = chart.addCandlestickSeries({
+                upColor: 'rgba(34, 197, 94, 0.8)', downColor: 'rgba(239, 68, 68, 0.8)',
+                borderDownColor: '#EF4444', borderUpColor: '#22C55E',
+                wickDownColor: '#EF4444', wickUpColor: '#22C55E',
+            });
+            updateChartTheme();
+        }
+        
+        function generateMockData(count = 200) {
+            const data = [];
+            let price = 1.1200 + (Math.random() - 0.5) * 0.1;
+            let date = new Date();
+            date.setDate(date.getDate() - count);
+            for (let i = 0; i < count; i++) {
+                const open = price;
+                const close = open + (Math.random() - 0.5) * 0.005;
+                const high = Math.max(open, close) + Math.random() * 0.003;
+                const low = Math.min(open, close) - Math.random() * 0.003;
+                date.setDate(date.getDate() + 1);
+                if (date.getDay() % 6 === 0) date.setDate(date.getDate() + (date.getDay() === 6 ? 2 : 1));
+                data.push({ time: date.toISOString().split('T')[0], open, high, low, close });
+                price = close;
+            }
+            return data;
+        }
+
+        function updateChart(ticker) {
+            currentTicker = ticker.toUpperCase();
+            candleSeries.setData(generateMockData());
+            chart.timeScale().fitContent();
+            chart.applyOptions({
+                watermark: {
+                    color: 'rgba(156, 163, 175, 0.1)', visible: true, text: `${currentTicker} - Daily`,
+                    fontSize: 48, horzAlign: 'center', vertAlign: 'center',
+                },
+            });
+        }
+        
+        window.addEventListener('resize', () => {
+            if (chart && chartContainer.clientWidth > 0) {
+                chart.resize(chartContainer.clientWidth, chartContainer.clientHeight);
+            }
+        });
+
+        // --- AI & Analysis Display ---
+        function showLoader() {
+            analysisOutput.innerHTML = '<div class="loader"></div>';
+        }
+
+        function displayAnalysis(data) {
+            const { confluences, tradeSetup } = data;
+            detailedAnalysisText = data.detailedAnalysis;
+            analysisOutput.innerHTML = `
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="text-xl font-bold mb-3">Confluence Checklist</h3>
+                        <div id="confluence-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+                    </div>
+                    <div id="go-no-go-signal" class="text-center py-4 rounded-lg text-white font-extrabold text-2xl tracking-wider" style="opacity: 0; transition: opacity 0.5s;"></div>
+                    <div id="trade-setup-card" style="opacity: 0; transition: opacity 0.5s;"></div>
+                    <div id="details-button-container" class="text-center" style="opacity: 0; transition: opacity 0.5s;">
+                        <button id="view-details-btn" class="font-semibold py-2 px-5 rounded-lg" style="background-color: var(--card-bg-color); border: 1px solid var(--border-color);">View Detailed Analysis</button>
+                    </div>
+                </div>
+            `;
+            
+            const confluenceGrid = document.getElementById('confluence-grid');
+            const goNoGoSignal = document.getElementById('go-no-go-signal');
+            const tradeSetupCard = document.getElementById('trade-setup-card');
+            const detailsButtonContainer = document.getElementById('details-button-container');
+
+            let positiveConfluences = 0;
+            const positiveStatus = ["yes", "detected", "strong", "high"];
+
+            confluences.forEach((c, index) => {
+                setTimeout(() => {
+                    const status = c.status.toLowerCase();
+                    if (positiveStatus.includes(status)) positiveConfluences++;
+
+                    const icon = status.includes('yes') || status.includes('detected') || status.includes('strong') || status.includes('high')
+                        ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" style="color: var(--go-color);" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>`
+                        : `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" style="color: var(--invalid-color);" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" /></svg>`;
+                    
+                    const item = document.createElement('div');
+                    item.className = 'p-3 rounded-lg flex items-center gap-3 opacity-0 fade-in';
+                    item.style = `background-color: var(--bg-color); border: 1px solid var(--border-color); animation-delay: ${index * 0.1}s;`;
+                    item.innerHTML = `
+                        ${icon}
+                        <span class="flex-grow text-sm font-medium">${c.name}</span>
+                        <span class="text-xs font-semibold px-2 py-1 rounded" style="background-color: var(--card-bg-color); color: var(--muted-text-color);">${c.status.toUpperCase()}</span>
+                    `;
+                    confluenceGrid.appendChild(item);
+
+                    if (index === confluences.length - 1) {
+                        setTimeout(() => {
+                            let signalText = '';
+                            let signalColor = '';
+                            if (positiveConfluences >= 5) {
+                                signalText = `SETUP CONFIRMED: IT'S A GO!`;
+                                signalColor = 'var(--go-color)';
+                            } else if (positiveConfluences >= 3) {
+                                signalText = `CAUTION ADVISED`;
+                                signalColor = 'var(--caution-color)';
+                            } else {
+                                signalText = `SETUP INVALID`;
+                                signalColor = 'var(--invalid-color)';
+                            }
+                            goNoGoSignal.innerHTML = `${positiveConfluences} / ${confluences.length} CONFLUENCES MET <br> ${signalText}`;
+                            goNoGoSignal.style.backgroundColor = signalColor;
+                            goNoGoSignal.style.opacity = 1;
+                            
+                            tradeSetupCard.style.opacity = 1;
+                            detailsButtonContainer.style.opacity = 1;
+                        }, 300);
+                    }
+                }, index * 300);
+            });
+
+            const takeProfitsHTML = tradeSetup.takeProfits.map((tp, i) => `
+                <div>
+                    <p class="text-xs font-semibold uppercase" style="color: var(--muted-text-color);">Take Profit ${i + 1}</p>
+                    <p class="text-lg font-mono font-bold">${tp}</p>
+                </div>
+            `).join('');
+
+            tradeSetupCard.innerHTML = `
+                <div class="p-4 rounded-lg" style="background-color: var(--card-bg-color); border: 1px solid var(--border-color);">
+                    <div class="flex justify-between items-start mb-4">
+                        <h4 class="font-bold text-lg">Trade Setup: <span style="color: ${tradeSetup.direction === 'Bullish' ? 'var(--go-color)' : 'var(--invalid-color)'}">${tradeSetup.direction}</span></h4>
+                        <div class="text-right">
+                             <p class="text-xs font-semibold uppercase" style="color: var(--muted-text-color);">${tradeSetup.session} Session</p>
+                             <p class="text-xs" style="color: var(--muted-text-color);">Likelihood: ${tradeSetup.likelihood} / Risk: ${tradeSetup.riskPercentage}</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                        <div>
+                            <p class="text-xs font-semibold uppercase" style="color: var(--muted-text-color);">Entry</p>
+                            <p class="text-lg font-mono font-bold">${tradeSetup.entry}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold uppercase" style="color: var(--muted-text-color);">Stop Loss</p>
+                            <p class="text-lg font-mono font-bold">${tradeSetup.stopLoss}</p>
+                        </div>
+                        ${takeProfitsHTML}
+                    </div>
+                    <p class="text-xs text-center mt-3" style="color: var(--muted-text-color);">POC: ${tradeSetup.poc}</p>
+                </div>
+            `;
+            document.getElementById('details-button-container').addEventListener('click', openModal);
+        }
+
+        async function getAnalysis() {
+            showLoader();
+            const prompt = `
+                You are an expert trading analyst specializing in the "Snipe Academy" methodology.
+                Analyze the financial instrument: ${currentTicker} for a scalper/intraday trader on the 1H, 30m, and 15m timeframes.
+                You MUST return your entire response as a single, valid JSON object conforming to the provided schema. Do not include any text outside the JSON structure.
+                The 'confluences' array must contain exactly these 7 items in order: Market Structure, S/D Zone, Momentum, Liquidity, Manipulation Pattern, Higher Timeframe Alignment, Candlestick Pattern.
+            `;
+            const schema = {
+                type: "OBJECT",
+                properties: {
+                    confluences: {
+                        type: "ARRAY",
+                        items: {
+                            type: "OBJECT",
+                            properties: { name: { type: "STRING" }, status: { type: "STRING" } },
+                            required: ["name", "status"]
+                        }
+                    },
+                    tradeSetup: {
+                        type: "OBJECT",
+                        properties: {
+                            direction: { type: "STRING" }, entry: { type: "STRING" },
+                            poc: { type: "STRING" }, stopLoss: { type: "STRING" },
+                            takeProfits: { type: "ARRAY", items: { type: "STRING" } },
+                            likelihood: { type: "STRING" }, session: { type: "STRING" },
+                            riskPercentage: { type: "STRING" }
+                        },
+                        required: ["direction", "entry", "poc", "stopLoss", "takeProfits", "likelihood", "session", "riskPercentage"]
+                    },
+                    detailedAnalysis: { type: "STRING" }
+                },
+                required: ["confluences", "tradeSetup", "detailedAnalysis"]
+            };
+
+            const payload = {
+                contents: [{ role: "user", parts: [{ text: prompt }] }],
+                generationConfig: { responseMimeType: "application/json", responseSchema: schema }
+            };
+            const apiKey = document.getElementById('gemini-api-key').value || "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!response.ok) throw new Error(`API Error: ${response.status}`);
+                const result = await response.json();
+                const jsonText = result.candidates[0].content.parts[0].text;
+                displayAnalysis(JSON.parse(jsonText));
+            } catch (error) {
+                console.error("Analysis Error:", error);
+                analysisOutput.innerHTML = `<p class="text-center text-red-500">Failed to get analysis. ${error.message}</p>`;
+            }
+        }
+
+        analyseBtn.addEventListener('click', getAnalysis);
+        tickerInput.addEventListener('keyup', (e) => e.key === 'Enter' && getAnalysis());
+
+        // --- Modal & Export ---
+        function openModal() { modalBody.innerHTML = detailedAnalysisText.replace(/\n/g, '<br>'); modal.classList.add('active'); }
+        function closeModal() { modal.classList.remove('active'); }
+        modalCloseBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+        copyBtn.addEventListener('click', () => { navigator.clipboard.writeText(detailedAnalysisText).then(() => { copyBtn.textContent = 'Copied!'; setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000); }); });
+        downloadBtn.addEventListener('click', () => {
+            const blob = new Blob([detailedAnalysisText], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `${currentTicker}_analysis.md`;
+            document.body.appendChild(a); a.click();
+            document.body.removeChild(a); URL.revokeObjectURL(url);
+        });
+
+        // --- Initial Load ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            applyTheme(savedTheme);
+            initializeChart();
+            updateChart(currentTicker);
+        });
+    </script>
+</body>
+</html>
