@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Trading Dashboard v1.12</title>
+    <title>AI Gold Analysis Dashboard v1.13</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -72,56 +72,57 @@
             animation: fadeIn 0.5s ease-out forwards;
         }
 
+        /* Confluence Item Details */
+        .confluence-details {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease-in-out, padding 0.4s ease-in-out;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+        .confluence-item.expanded .confluence-details {
+            max-height: 100px; /* Adjust as needed */
+            padding-top: 0.75rem;
+            padding-bottom: 0.25rem;
+        }
+
         /* Modal Styles */
         .modal-overlay {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            top: 0; left: 0; right: 0; bottom: 0;
             background-color: rgba(0, 0, 0, 0.6);
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 50;
-            opacity: 0;
-            visibility: hidden;
+            opacity: 0; visibility: hidden;
             transition: opacity 0.3s, visibility 0.3s;
         }
-        .modal-overlay.active {
-            opacity: 1;
-            visibility: visible;
-        }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
         .modal-content {
             background-color: var(--card-bg-color);
             padding: 2rem;
             border-radius: 0.75rem;
             width: 90%;
-            max-width: 48rem; /* 768px */
+            max-width: 48rem;
             max-height: 90vh;
             display: flex;
             flex-direction: column;
             transform: scale(0.95);
             transition: transform 0.3s;
         }
-        .modal-overlay.active .modal-content {
-            transform: scale(1);
-        }
-        .modal-body {
-            overflow-y: auto;
-            flex-grow: 1;
-        }
+        .modal-overlay.active .modal-content { transform: scale(1); }
+        .modal-body { overflow-y: auto; flex-grow: 1; }
     </style>
 </head>
 <body class="antialiased">
 
     <div class="container mx-auto p-4 md:p-8 max-w-7xl">
         
-        <!-- Header -->
         <header class="flex justify-between items-center mb-8">
             <div>
-                <h1 class="text-3xl md:text-4xl font-bold tracking-tight">AI Analysis Dashboard</h1>
-                <p class="text-lg mt-1" style="color: var(--muted-text-color);">v1.12</p>
+                <h1 class="text-3xl md:text-4xl font-bold tracking-tight">AI Gold Analysis Dashboard</h1>
+                <p class="text-lg mt-1" style="color: var(--muted-text-color);">v1.13</p>
             </div>
             <button id="theme-switcher" class="p-2 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--bg-color)] focus:ring-[var(--accent-color-1)]" style="color: var(--muted-text-color);">
                 <svg id="sun-icon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
@@ -129,23 +130,17 @@
             </button>
         </header>
 
-        <!-- Ticker Input -->
         <div class="flex flex-col sm:flex-row justify-center items-center gap-2 mb-6">
-            <input type="text" id="tickerInput" class="text-sm rounded-lg block w-full max-w-xs p-2.5" placeholder="e.g., AAPL, EURUSD" value="EURUSD" style="background-color: var(--card-bg-color); border: 1px solid var(--border-color); color: var(--text-color);">
+            <input type="text" id="tickerInput" class="text-sm text-center rounded-lg block w-full max-w-xs p-2.5 font-bold" value="XAUUSD" disabled style="background-color: var(--card-bg-color); border: 1px solid var(--border-color); color: var(--text-color);">
             <button id="analyseBtn" class="w-full sm:w-auto font-bold py-2.5 px-5 rounded-lg transition-colors text-white" style="background-color: var(--accent-color-1);">
-                Analyze
+                Analyze Gold
             </button>
         </div>
 
-        <!-- Chart Container -->
         <div id="chart-container" class="chart-container shadow-lg"></div>
 
-        <!-- Analysis Output -->
-        <div id="analysis-output" class="mt-8 min-h-[200px]">
-            <!-- Dynamic content will be injected here -->
-        </div>
+        <div id="analysis-output" class="mt-8 min-h-[200px]"></div>
 
-        <!-- API Settings -->
         <div class="mt-8">
              <details class="rounded-lg" style="background-color: var(--card-bg-color); border: 1px solid var(--border-color);">
                 <summary class="p-4 font-semibold cursor-pointer">API & Chart Settings</summary>
@@ -154,10 +149,6 @@
                         <div>
                             <label for="gemini-api-key" class="block text-sm font-medium mb-1">Gemini API Key</label>
                             <input type="password" id="gemini-api-key" class="w-full p-2 text-sm rounded-md" style="background-color: var(--bg-color); border: 1px solid var(--border-color);" placeholder="Leave blank to use internal key">
-                        </div>
-                        <div>
-                            <label for="tradingview-api-key" class="block text-sm font-medium mb-1">TradingView API Key (Data)</label>
-                            <input type="password" id="tradingview-api-key" class="w-full p-2 text-sm rounded-md" style="background-color: var(--bg-color); border: 1px solid var(--border-color);" placeholder="Not implemented (uses mock data)">
                         </div>
                     </div>
                 </div>
@@ -202,20 +193,14 @@
         // --- State ---
         let chart = null;
         let candleSeries = null;
-        let currentTicker = 'EURUSD';
+        let currentTicker = 'XAUUSD';
         let detailedAnalysisText = '';
 
         // --- Theming ---
         function applyTheme(theme) {
-            if (theme === 'dark') {
-                document.body.classList.add('dark-theme');
-                sunIcon.classList.add('hidden');
-                moonIcon.classList.remove('hidden');
-            } else {
-                document.body.classList.remove('dark-theme');
-                sunIcon.classList.remove('hidden');
-                moonIcon.classList.add('hidden');
-            }
+            document.body.classList.toggle('dark-theme', theme === 'dark');
+            sunIcon.classList.toggle('hidden', theme === 'dark');
+            moonIcon.classList.toggle('hidden', theme !== 'dark');
             if (chart) updateChartTheme();
         }
 
@@ -236,10 +221,7 @@
         // --- Charting ---
         function initializeChart() {
             if (chart) chart.remove();
-            
-            // FIX: Destructure createChart from the global LightweightCharts object to ensure correct reference
             const { createChart, CrosshairMode } = LightweightCharts;
-
             chart = createChart(chartContainer, {
                 width: chartContainer.clientWidth,
                 height: chartContainer.clientHeight,
@@ -255,24 +237,23 @@
         
         function generateMockData(count = 200) {
             const data = [];
-            let price = 1.1200 + (Math.random() - 0.5) * 0.1;
+            let price = 2350.00 + (Math.random() - 0.5) * 50;
             let date = new Date();
             date.setDate(date.getDate() - count);
             for (let i = 0; i < count; i++) {
                 const open = price;
-                const close = open + (Math.random() - 0.5) * 0.005;
-                const high = Math.max(open, close) + Math.random() * 0.003;
-                const low = Math.min(open, close) - Math.random() * 0.003;
+                const close = open + (Math.random() - 0.5) * 15;
+                const high = Math.max(open, close) + Math.random() * 10;
+                const low = Math.min(open, close) - Math.random() * 10;
                 date.setDate(date.getDate() + 1);
                 if (date.getDay() % 6 === 0) date.setDate(date.getDate() + (date.getDay() === 6 ? 2 : 1));
-                data.push({ time: date.toISOString().split('T')[0], open, high, low, close });
+                data.push({ time: date.toISOString().split('T')[0], open: +open.toFixed(2), high: +high.toFixed(2), low: +low.toFixed(2), close: +close.toFixed(2) });
                 price = close;
             }
             return data;
         }
 
-        function updateChart(ticker) {
-            currentTicker = ticker.toUpperCase();
+        function updateChart() {
             candleSeries.setData(generateMockData());
             chart.timeScale().fitContent();
             chart.applyOptions({
@@ -317,26 +298,35 @@
             const detailsButtonContainer = document.getElementById('details-button-container');
 
             let positiveConfluences = 0;
-            const positiveStatus = ["yes", "detected", "strong", "high"];
+            const positiveStatus = ["yes", "detected", "strong", "high", "bullish", "bearish"];
 
             confluences.forEach((c, index) => {
                 setTimeout(() => {
                     const status = c.status.toLowerCase();
                     if (positiveStatus.includes(status)) positiveConfluences++;
 
-                    const icon = status.includes('yes') || status.includes('detected') || status.includes('strong') || status.includes('high')
+                    const icon = positiveStatus.includes(status)
                         ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" style="color: var(--go-color);" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>`
                         : `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" style="color: var(--invalid-color);" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" /></svg>`;
                     
                     const item = document.createElement('div');
-                    item.className = 'p-3 rounded-lg flex items-center gap-3 opacity-0 fade-in';
+                    item.className = 'confluence-item p-3 rounded-lg opacity-0 fade-in';
                     item.style = `background-color: var(--bg-color); border: 1px solid var(--border-color); animation-delay: ${index * 0.1}s;`;
                     item.innerHTML = `
-                        ${icon}
-                        <span class="flex-grow text-sm font-medium">${c.name}</span>
-                        <span class="text-xs font-semibold px-2 py-1 rounded" style="background-color: var(--card-bg-color); color: var(--muted-text-color);">${c.status.toUpperCase()}</span>
+                        <div class="flex items-center gap-3">
+                            ${icon}
+                            <span class="flex-grow text-sm font-medium">${c.name}</span>
+                            <span class="text-xs font-semibold px-2 py-1 rounded" style="background-color: var(--card-bg-color); color: var(--muted-text-color);">${c.status.toUpperCase()}</span>
+                            <button class="hint-btn text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center" style="background-color: var(--card-bg-color); color: var(--muted-text-color); border: 1px solid var(--border-color);">&quest;</button>
+                        </div>
+                        <div class="confluence-details pl-8 pr-2 text-sm" style="color: var(--muted-text-color);">${c.detail}</div>
                     `;
                     confluenceGrid.appendChild(item);
+                    
+                    item.querySelector('.hint-btn').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        item.classList.toggle('expanded');
+                    });
 
                     if (index === confluences.length - 1) {
                         setTimeout(() => {
@@ -380,14 +370,8 @@
                         </div>
                     </div>
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-                        <div>
-                            <p class="text-xs font-semibold uppercase" style="color: var(--muted-text-color);">Entry</p>
-                            <p class="text-lg font-mono font-bold">${tradeSetup.entry}</p>
-                        </div>
-                        <div>
-                            <p class="text-xs font-semibold uppercase" style="color: var(--muted-text-color);">Stop Loss</p>
-                            <p class="text-lg font-mono font-bold">${tradeSetup.stopLoss}</p>
-                        </div>
+                        <div><p class="text-xs font-semibold uppercase" style="color: var(--muted-text-color);">Entry</p><p class="text-lg font-mono font-bold">${tradeSetup.entry}</p></div>
+                        <div><p class="text-xs font-semibold uppercase" style="color: var(--muted-text-color);">Stop Loss</p><p class="text-lg font-mono font-bold">${tradeSetup.stopLoss}</p></div>
                         ${takeProfitsHTML}
                     </div>
                     <p class="text-xs text-center mt-3" style="color: var(--muted-text-color);">POC: ${tradeSetup.poc}</p>
@@ -400,7 +384,7 @@
             showLoader();
             const prompt = `
                 You are an expert trading analyst specializing in the "Snipe Academy" methodology.
-                Analyze the financial instrument: ${currentTicker} for a scalper/intraday trader on the 1H, 30m, and 15m timeframes.
+                Analyze Gold (XAUUSD) for a scalper/intraday trader on the 1H, 30m, and 15m timeframes.
                 You MUST return your entire response as a single, valid JSON object conforming to the provided schema. Do not include any text outside the JSON structure.
                 The 'confluences' array must contain exactly these 7 items in order: Market Structure, S/D Zone, Momentum, Liquidity, Manipulation Pattern, Higher Timeframe Alignment, Candlestick Pattern.
             `;
@@ -411,8 +395,12 @@
                         type: "ARRAY",
                         items: {
                             type: "OBJECT",
-                            properties: { name: { type: "STRING" }, status: { type: "STRING" } },
-                            required: ["name", "status"]
+                            properties: { 
+                                name: { type: "STRING" }, 
+                                status: { type: "STRING" },
+                                detail: { type: "STRING", description: "A brief, one-sentence explanation for the status of this confluence." }
+                            },
+                            required: ["name", "status", "detail"]
                         }
                     },
                     tradeSetup: {
@@ -451,7 +439,6 @@
         }
 
         analyseBtn.addEventListener('click', getAnalysis);
-        tickerInput.addEventListener('keyup', (e) => e.key === 'Enter' && getAnalysis());
 
         // --- Modal & Export ---
         function openModal() { modalBody.innerHTML = detailedAnalysisText.replace(/\n/g, '<br>'); modal.classList.add('active'); }
@@ -473,7 +460,7 @@
             const savedTheme = localStorage.getItem('theme') || 'dark';
             applyTheme(savedTheme);
             initializeChart();
-            updateChart(currentTicker);
+            updateChart();
         });
     </script>
 </body>
